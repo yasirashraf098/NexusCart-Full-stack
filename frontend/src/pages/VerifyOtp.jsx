@@ -1,21 +1,40 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { KeyRound, CheckCircle2, ArrowRight } from 'lucide-react';
+import { KeyRound, CheckCircle2, RefreshCw } from 'lucide-react';
 
 export const VerifyOtp = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { verifyOtp, loading } = useAuth();
+  const { verifyOtp, resendOtp, loading } = useAuth();
   
   const [email, setEmail] = useState(location.state?.email || '');
   const [otp, setOtp] = useState('');
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    let timer;
+    if (cooldown > 0) {
+      timer = setInterval(() => {
+        setCooldown((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [cooldown]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     const res = await verifyOtp(email, otp);
     if (res.success) {
       navigate('/');
+    }
+  };
+
+  const handleResend = async () => {
+    if (!email || cooldown > 0) return;
+    const res = await resendOtp(email);
+    if (res.success) {
+      setCooldown(60);
     }
   };
 
@@ -29,7 +48,7 @@ export const VerifyOtp = () => {
           </div>
           <h1 className="text-2xl font-black text-slate-900">Verify Your Email</h1>
           <p className="text-slate-500 text-xs">
-            We sent a 6-digit verification code to <strong className="text-slate-800">{email}</strong>
+            We sent a 6-digit verification code to <strong className="text-slate-800">{email || 'your email'}</strong>
           </p>
         </div>
 
@@ -76,11 +95,25 @@ export const VerifyOtp = () => {
           </button>
         </form>
 
-        <div className="text-center text-xs text-slate-500 pt-2 border-t border-slate-100">
-          Didn't receive code? Check your inbox/spam or{' '}
-          <Link to="/login" className="font-bold text-blue-600 hover:underline">
-            Return to Login
-          </Link>
+        <div className="flex flex-col items-center space-y-3 pt-3 border-t border-slate-100 text-xs">
+          <div className="flex items-center gap-1.5 text-slate-600">
+            <span>Didn't receive code? Check spam folder or</span>
+            <button
+              type="button"
+              onClick={handleResend}
+              disabled={cooldown > 0 || loading || !email}
+              className="font-bold text-blue-600 hover:underline flex items-center gap-1 disabled:text-slate-400 disabled:no-underline"
+            >
+              <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
+              {cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend OTP'}
+            </button>
+          </div>
+
+          <div>
+            <Link to="/login" className="font-bold text-slate-500 hover:text-slate-800">
+              Return to Login
+            </Link>
+          </div>
         </div>
 
       </div>

@@ -1,7 +1,6 @@
 const Order = require('../model/Order.js');
-
 const { sendEmail } = require('../utils/sendEmail.js');
-
+const { getOrderConfirmationTemplate } = require('../utils/emailTemplates.js');
 
 // Create a new order
 const createOrder = async (req, res) => {
@@ -26,7 +25,7 @@ const createOrder = async (req, res) => {
 
         await order.save();
 
-        const message = `Dear ${req.user.name},
+        const textMessage = `Dear ${req.user.name},
 
 Thank you for your order! Your order has been successfully placed.
 
@@ -39,14 +38,20 @@ We will notify you once your order is shipped.
 Best regards,
 NexusCart Team`;
 
-        await sendEmail(req.user.email, "Order Confirmation", message);
+        const htmlMessage = getOrderConfirmationTemplate(order, req.user);
+
+        // Attempt email sending asynchronously without breaking order response if SMTP fails
+        try {
+            await sendEmail(req.user.email, `Order Confirmation #${order._id}`, textMessage, htmlMessage);
+        } catch (emailError) {
+            console.error("Order creation email notification error:", emailError.message);
+        }
 
         res.status(201).json(order);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 };
-
 
 const myorders = async (req, res) => {
     try {
@@ -60,7 +65,6 @@ const myorders = async (req, res) => {
     }
 };
 
-
 const getOrders = async (req, res) => {
     try {
         const orders = await Order.find({})
@@ -72,7 +76,6 @@ const getOrders = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
-
 
 const getOrderById = async (req, res) => {
     try {
@@ -90,7 +93,6 @@ const getOrderById = async (req, res) => {
     }
 };
 
-
 const updateOrderStatus = async (req, res) => {
     try {
         const { status } = req.body;
@@ -105,16 +107,13 @@ const updateOrderStatus = async (req, res) => {
                 message: "Order status updated successfully",
                 order
             });
-        }
-        else {
+        } else {
             res.status(404).json({ message: "Order not found" });
         }
-
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 };
-
 
 module.exports = {
     createOrder,

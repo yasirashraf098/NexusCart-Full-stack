@@ -51,9 +51,29 @@ export const AuthProvider = ({ children }) => {
     try {
       const { data } = await API.post('/auth/verify-email', { email, otp });
       addToast('Email verified successfully!', 'success');
+      if (user) {
+        const updatedUser = { ...user, isVerified: true, verified: true };
+        setUser(updatedUser);
+        localStorage.setItem('userInfo', JSON.stringify(updatedUser));
+      }
       return { success: true, data };
     } catch (error) {
       const message = error.response?.data?.message || 'OTP verification failed.';
+      addToast(message, 'error');
+      return { success: false, error: message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resendOtp = async (email) => {
+    setLoading(true);
+    try {
+      const { data } = await API.post('/auth/resend-otp', { email });
+      addToast('A new OTP has been sent to your email!', 'success');
+      return { success: true, data };
+    } catch (error) {
+      const message = error.response?.data?.message || 'Failed to resend OTP.';
       addToast(message, 'error');
       return { success: false, error: message };
     } finally {
@@ -68,7 +88,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, verifyOtp, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, verifyOtp, resendOtp, logout }}>
       {children}
     </AuthContext.Provider>
   );

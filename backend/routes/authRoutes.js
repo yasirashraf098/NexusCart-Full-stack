@@ -5,7 +5,8 @@ const {
     registerUser,
     loginUser,
     getUsers,
-    verifyEmail
+    verifyEmail,
+    resendOtp
 } = require("../controllers/authController.js");
 
 const { protect } = require("../middleware/authMiddleware.js");
@@ -18,5 +19,7 @@ router.post("/login", loginUser);
 router.get("/users", protect, admin, getUsers);
 
 router.post("/verify-email", verifyEmail);
+
+router.post("/resend-otp", resendOtp);
 
 module.exports = router;
