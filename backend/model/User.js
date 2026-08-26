@@ -25,17 +25,18 @@ const userSchema = new mongoose.Schema({
         default: false
     },
     otp: {
-    type: String
+        type: String
     },
 
     otpExpires: {
-    type: Date
+        type: Date
     },
 
-     isVerified: {
-    type: Boolean,
-    default: false
+    isVerified: {
+        type: Boolean,
+        default: false
     },
 });
 
-module.exports = mongoose.model("User", userSchema);
+module.exports =
+    mongoose.models.User || mongoose.model("User", userSchema);
