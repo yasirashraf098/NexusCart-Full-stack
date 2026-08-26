@@ -5,7 +5,7 @@ const bcrypt = require("bcryptjs");
 const connectDB = require("./config/db");
 const User = require("./model/User");
 const Product = require("./model/Product");
-const Order = require("./model/order");
+const Order = require("./model/Order");
 const Coupon = require("./model/Coupon");
 
 const products = [

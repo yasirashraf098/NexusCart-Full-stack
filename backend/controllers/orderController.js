@@ -1,4 +1,4 @@
-const Order = require('../model/order.js');
+const Order = require('../model/Order.js');
 
 const { sendEmail } = require('../utils/sendEmail.js');
 
