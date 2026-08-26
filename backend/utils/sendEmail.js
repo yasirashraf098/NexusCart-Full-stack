@@ -13,9 +13,9 @@ const getTransporter = () => {
     if (!transporter) {
         transporter = nodemailer.createTransport({
             service: "gmail",
-            pool: true,
-            maxConnections: 5,
-            maxMessages: 100,
+            connectionTimeout: 10000, // 10 sec connection timeout
+            greetingTimeout: 5000,    // 5 sec greeting timeout
+            socketTimeout: 15000,     // 15 sec socket timeout
             auth: { user, pass }
         });
     }
@@ -44,7 +44,7 @@ const sendEmail = async (to, subject, text, html = null) => {
         return info;
     } catch (error) {
         console.error("Error sending email:", error.message || error);
-        transporter = null; // Reset transporter on failure to re-authenticate next time
+        transporter = null; // Reset transporter on error to re-authenticate next attempt
         throw new Error(`Failed to send email: ${error.message}`);
     }
 };
