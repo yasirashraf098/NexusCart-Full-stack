@@ -19,13 +19,17 @@ const getTransporter = () => {
     if (!transporter) {
         transporter = nodemailer.createTransport({
             host: "smtp.gmail.com",
-            port: 465,
-            secure: true,
-            family: 4, // Force IPv4 socket connection on cloud servers
+            port: 587,
+            secure: false, // Use STARTTLS on port 587 (unblocked on cloud hosts)
+            requireTLS: true,
+            family: 4, // Force IPv4 socket connection
             connectionTimeout: 10000,
             greetingTimeout: 5000,
             socketTimeout: 15000,
-            auth: { user, pass }
+            auth: { user, pass },
+            tls: {
+                rejectUnauthorized: false
+            }
         });
     }
     return transporter;
