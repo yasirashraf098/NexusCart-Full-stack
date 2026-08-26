@@ -8,40 +8,6 @@ const generateToken = (id) => {
     return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "7d" });
 };
 
-// Diagnostic route to test live Render SMTP & HTTP API execution
-const testEmailRoute = async (req, res) => {
-    try {
-        const targetEmail = req.query.email || process.env.EMAIL_USER || "test@example.com";
-        
-        const envKeysFound = Object.keys(process.env).filter(k => 
-            k.includes("EMAIL") || k.includes("RESEND") || k.includes("BREVO") || k.includes("PASS") || k.includes("KEY")
-        );
-
-        console.log(`[DIAGNOSTIC] Detected Env Keys: ${envKeysFound.join(", ")}`);
-
-        const info = await sendEmail(targetEmail, "Render Email Diagnostic Test", "Diagnostic email content from Render", "<p>Diagnostic email content from Render</p>");
-        
-        res.json({
-            success: true,
-            message: "Email sent successfully from Render container",
-            targetEmail,
-            envKeysFound,
-            info
-        });
-    } catch (err) {
-        console.error("DIAGNOSTIC EMAIL FAIL ON RENDER:", err);
-        const envKeysFound = Object.keys(process.env).filter(k => 
-            k.includes("EMAIL") || k.includes("RESEND") || k.includes("BREVO") || k.includes("PASS") || k.includes("KEY")
-        );
-        res.status(500).json({
-            success: false,
-            error: err.message,
-            envKeysFound,
-            stack: err.stack
-        });
-    }
-};
-
 // Register a new user
 const registerUser = async (req, res) => {
     const { name, email, password } = req.body;
@@ -268,6 +234,5 @@ module.exports = {
     loginUser,
     getUsers,
     verifyEmail,
-    resendOtp,
-    testEmailRoute
+    resendOtp
 };
