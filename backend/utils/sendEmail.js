@@ -7,10 +7,7 @@ if (dns.setDefaultResultOrder) {
 
 let transporter = null;
 
-const sendViaResend = async (to, subject, text, html) => {
-    const apiKey = process.env.RESEND_API_KEY.trim();
-    const fromEmail = process.env.EMAIL_USER ? process.env.EMAIL_USER.trim() : "onboarding@resend.dev";
-    
+const sendViaResend = async (to, subject, text, html, apiKey) => {
     const response = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
@@ -18,7 +15,7 @@ const sendViaResend = async (to, subject, text, html) => {
             "Content-Type": "application/json"
         },
         body: JSON.stringify({
-            from: `NexusCart <${fromEmail.includes('@resend.dev') ? fromEmail : 'onboarding@resend.dev'}>`,
+            from: "NexusCart <onboarding@resend.dev>",
             to: [(to || "").trim()],
             subject: subject,
             text: text,
@@ -28,14 +25,13 @@ const sendViaResend = async (to, subject, text, html) => {
 
     const data = await response.json();
     if (!response.ok) {
-        throw new Error(`Resend API Error: ${data.message || JSON.stringify(data)}`);
+        throw new Error(`Resend API Error (${response.status}): ${data.message || JSON.stringify(data)}`);
     }
     console.log(`Email sent via Resend API to ${to}. ID: ${data.id}`);
-    return data;
+    return { provider: "Resend", ...data };
 };
 
-const sendViaBrevo = async (to, subject, text, html) => {
-    const apiKey = process.env.BREVO_API_KEY.trim();
+const sendViaBrevo = async (to, subject, text, html, apiKey) => {
     const senderEmail = process.env.EMAIL_USER ? process.env.EMAIL_USER.trim() : "noreply@nexuscart.com";
 
     const response = await fetch("https://api.brevo.com/v3/smtp/email", {
@@ -55,10 +51,10 @@ const sendViaBrevo = async (to, subject, text, html) => {
 
     const data = await response.json();
     if (!response.ok) {
-        throw new Error(`Brevo API Error: ${JSON.stringify(data)}`);
+        throw new Error(`Brevo API Error (${response.status}): ${JSON.stringify(data)}`);
     }
     console.log(`Email sent via Brevo API to ${to}. MessageId: ${data.messageId}`);
-    return data;
+    return { provider: "Brevo", ...data };
 };
 
 const getTransporter = () => {
@@ -89,25 +85,25 @@ const getTransporter = () => {
 };
 
 const sendEmail = async (to, subject, text, html = null) => {
-    // 1. Try Resend HTTP API if key is set
-    if (process.env.RESEND_API_KEY && process.env.RESEND_API_KEY.trim()) {
+    const resendKey = (process.env.RESEND_API_KEY || process.env.RESEND_KEY || process.env.RESEND_APIKEY || process.env.resend_api_key || "").trim();
+    if (resendKey) {
         try {
-            return await sendViaResend(to, subject, text, html);
+            return await sendViaResend(to, subject, text, html, resendKey);
         } catch (resendErr) {
             console.error("Resend API failed, falling back:", resendErr.message);
         }
     }
 
-    // 2. Try Brevo HTTP API if key is set
-    if (process.env.BREVO_API_KEY && process.env.BREVO_API_KEY.trim()) {
+    const brevoKey = (process.env.BREVO_API_KEY || process.env.BREVO_KEY || process.env.BREVO_APIKEY || process.env.brevo_api_key || "").trim();
+    if (brevoKey) {
         try {
-            return await sendViaBrevo(to, subject, text, html);
+            return await sendViaBrevo(to, subject, text, html, brevoKey);
         } catch (brevoErr) {
             console.error("Brevo API failed, falling back:", brevoErr.message);
         }
     }
 
-    // 3. Fallback to Nodemailer SMTP
+    // Fallback to Nodemailer SMTP
     try {
         const user = (process.env.EMAIL_USER || "").trim();
         if (!user) {
@@ -125,8 +121,8 @@ const sendEmail = async (to, subject, text, html = null) => {
         };
 
         const info = await activeTransporter.sendMail(mailOptions);
-        console.log(`Email sent successfully to ${to}. MessageId: ${info.messageId}`);
-        return info;
+        console.log(`Email sent successfully via SMTP to ${to}. MessageId: ${info.messageId}`);
+        return { provider: "SMTP", ...info };
     } catch (error) {
         console.error("Error sending email via SMTP:", error.message || error);
         transporter = null;

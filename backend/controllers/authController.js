@@ -8,36 +8,35 @@ const generateToken = (id) => {
     return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "7d" });
 };
 
-// Diagnostic route to test live Render SMTP execution
+// Diagnostic route to test live Render SMTP & HTTP API execution
 const testEmailRoute = async (req, res) => {
     try {
-        const targetEmail = req.query.email || process.env.EMAIL_USER;
-        const userEnv = process.env.EMAIL_USER ? process.env.EMAIL_USER.trim() : "NOT SET";
-        const passSet = !!process.env.EMAIL_PASS;
+        const targetEmail = req.query.email || process.env.EMAIL_USER || "test@example.com";
         
-        console.log(`[DIAGNOSTIC] Running test email send to: ${targetEmail} with USER: ${userEnv}, PASS_SET: ${passSet}`);
+        const envKeysFound = Object.keys(process.env).filter(k => 
+            k.includes("EMAIL") || k.includes("RESEND") || k.includes("BREVO") || k.includes("PASS") || k.includes("KEY")
+        );
 
-        const info = await sendEmail(targetEmail, "Render SMTP Diagnostic Test", "Diagnostic email content from Render", "<p>Diagnostic email content from Render</p>");
+        console.log(`[DIAGNOSTIC] Detected Env Keys: ${envKeysFound.join(", ")}`);
+
+        const info = await sendEmail(targetEmail, "Render Email Diagnostic Test", "Diagnostic email content from Render", "<p>Diagnostic email content from Render</p>");
         
         res.json({
             success: true,
             message: "Email sent successfully from Render container",
             targetEmail,
-            userEnv,
-            passSet,
+            envKeysFound,
             info
         });
     } catch (err) {
         console.error("DIAGNOSTIC EMAIL FAIL ON RENDER:", err);
+        const envKeysFound = Object.keys(process.env).filter(k => 
+            k.includes("EMAIL") || k.includes("RESEND") || k.includes("BREVO") || k.includes("PASS") || k.includes("KEY")
+        );
         res.status(500).json({
             success: false,
             error: err.message,
-            code: err.code,
-            command: err.command,
-            response: err.response,
-            responseCode: err.responseCode,
-            userEnv: process.env.EMAIL_USER ? process.env.EMAIL_USER.trim() : "NOT SET",
-            passSet: !!process.env.EMAIL_PASS,
+            envKeysFound,
             stack: err.stack
         });
     }
