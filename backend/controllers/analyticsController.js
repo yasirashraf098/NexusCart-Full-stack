@@ -1,12 +1,12 @@
-const Order = require('../model/order');
-const Product = require('../model/product');
-const User = require('../model/user');
+const Order = require("../model/Order.js");
+const Product = require("../model/Product.js");
+const User = require("../model/User.js");
 
 const getAdminStats = async (req, res) => {
   try {
     const totalOrders = await Order.countDocuments({});
     const totalProducts = await Product.countDocuments({});
-    const totalUsers = await User.countDocuments({ role: 'user' });
+    const totalUsers = await User.countDocuments({ role: "user" });
 
     const orders = await Order.find({});
     const totalRevenue = orders.reduce((acc, item) => acc + item.totalAmount, 0);
