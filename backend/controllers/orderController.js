@@ -40,12 +40,10 @@ NexusCart Team`;
 
         const htmlMessage = getOrderConfirmationTemplate(order, req.user);
 
-        // Attempt email sending asynchronously without breaking order response if SMTP fails
-        try {
-            await sendEmail(req.user.email, `Order Confirmation #${order._id}`, textMessage, htmlMessage);
-        } catch (emailError) {
+        // Send email asynchronously in the background so response is instant
+        sendEmail(req.user.email, `Order Confirmation #${order._id}`, textMessage, htmlMessage).catch(emailError => {
             console.error("Order creation email notification error:", emailError.message);
-        }
+        });
 
         res.status(201).json(order);
     } catch (error) {

@@ -1,6 +1,8 @@
 const nodemailer = require("nodemailer");
 
-const createTransporter = () => {
+let transporter = null;
+
+const getTransporter = () => {
     const user = (process.env.EMAIL_USER || "").trim();
     const pass = (process.env.EMAIL_PASS || "").replace(/\s+/g, "");
 
@@ -8,10 +10,16 @@ const createTransporter = () => {
         console.error("CRITICAL EMAIL CONFIG ERROR: EMAIL_USER or EMAIL_PASS environment variable is NOT set!");
     }
 
-    return nodemailer.createTransport({
-        service: "gmail",
-        auth: { user, pass }
-    });
+    if (!transporter) {
+        transporter = nodemailer.createTransport({
+            service: "gmail",
+            pool: true,
+            maxConnections: 5,
+            maxMessages: 100,
+            auth: { user, pass }
+        });
+    }
+    return transporter;
 };
 
 const sendEmail = async (to, subject, text, html = null) => {
@@ -21,7 +29,7 @@ const sendEmail = async (to, subject, text, html = null) => {
             throw new Error("EMAIL_USER environment variable is missing.");
         }
 
-        const transporter = createTransporter();
+        const activeTransporter = getTransporter();
 
         const mailOptions = {
             from: `"NexusCart" <${user}>`,
@@ -31,11 +39,12 @@ const sendEmail = async (to, subject, text, html = null) => {
             ...(html ? { html } : {})
         };
 
-        const info = await transporter.sendMail(mailOptions);
+        const info = await activeTransporter.sendMail(mailOptions);
         console.log(`Email sent successfully to ${to}. MessageId: ${info.messageId}`);
         return info;
     } catch (error) {
         console.error("Error sending email:", error.message || error);
+        transporter = null; // Reset transporter on failure to re-authenticate next time
         throw new Error(`Failed to send email: ${error.message}`);
     }
 };
