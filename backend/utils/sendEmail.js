@@ -87,20 +87,12 @@ const getTransporter = () => {
 const sendEmail = async (to, subject, text, html = null) => {
     const resendKey = (process.env.RESEND_API_KEY || process.env.RESEND_KEY || process.env.RESEND_APIKEY || process.env.resend_api_key || "").trim();
     if (resendKey) {
-        try {
-            return await sendViaResend(to, subject, text, html, resendKey);
-        } catch (resendErr) {
-            console.error("Resend API failed, falling back:", resendErr.message);
-        }
+        return await sendViaResend(to, subject, text, html, resendKey);
     }
 
     const brevoKey = (process.env.BREVO_API_KEY || process.env.BREVO_KEY || process.env.BREVO_APIKEY || process.env.brevo_api_key || "").trim();
     if (brevoKey) {
-        try {
-            return await sendViaBrevo(to, subject, text, html, brevoKey);
-        } catch (brevoErr) {
-            console.error("Brevo API failed, falling back:", brevoErr.message);
-        }
+        return await sendViaBrevo(to, subject, text, html, brevoKey);
     }
 
     // Fallback to Nodemailer SMTP
