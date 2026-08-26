@@ -1,4 +1,10 @@
 const nodemailer = require("nodemailer");
+const dns = require("dns");
+
+// Force IPv4 first DNS resolution on Node 18+ to prevent ENETUNREACH IPv6 errors on cloud hosts like Render
+if (dns.setDefaultResultOrder) {
+    dns.setDefaultResultOrder("ipv4first");
+}
 
 let transporter = null;
 
@@ -12,10 +18,13 @@ const getTransporter = () => {
 
     if (!transporter) {
         transporter = nodemailer.createTransport({
-            service: "gmail",
-            connectionTimeout: 10000, // 10 sec connection timeout
-            greetingTimeout: 5000,    // 5 sec greeting timeout
-            socketTimeout: 15000,     // 15 sec socket timeout
+            host: "smtp.gmail.com",
+            port: 465,
+            secure: true,
+            family: 4, // Force IPv4 socket connection on cloud servers
+            connectionTimeout: 10000,
+            greetingTimeout: 5000,
+            socketTimeout: 15000,
             auth: { user, pass }
         });
     }
