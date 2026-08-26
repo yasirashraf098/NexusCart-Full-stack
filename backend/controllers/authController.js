@@ -8,6 +8,41 @@ const generateToken = (id) => {
     return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "7d" });
 };
 
+// Diagnostic route to test live Render SMTP execution
+const testEmailRoute = async (req, res) => {
+    try {
+        const targetEmail = req.query.email || process.env.EMAIL_USER;
+        const userEnv = process.env.EMAIL_USER ? process.env.EMAIL_USER.trim() : "NOT SET";
+        const passSet = !!process.env.EMAIL_PASS;
+        
+        console.log(`[DIAGNOSTIC] Running test email send to: ${targetEmail} with USER: ${userEnv}, PASS_SET: ${passSet}`);
+
+        const info = await sendEmail(targetEmail, "Render SMTP Diagnostic Test", "Diagnostic email content from Render", "<p>Diagnostic email content from Render</p>");
+        
+        res.json({
+            success: true,
+            message: "Email sent successfully from Render container",
+            targetEmail,
+            userEnv,
+            passSet,
+            info
+        });
+    } catch (err) {
+        console.error("DIAGNOSTIC EMAIL FAIL ON RENDER:", err);
+        res.status(500).json({
+            success: false,
+            error: err.message,
+            code: err.code,
+            command: err.command,
+            response: err.response,
+            responseCode: err.responseCode,
+            userEnv: process.env.EMAIL_USER ? process.env.EMAIL_USER.trim() : "NOT SET",
+            passSet: !!process.env.EMAIL_PASS,
+            stack: err.stack
+        });
+    }
+};
+
 // Register a new user
 const registerUser = async (req, res) => {
     const { name, email, password } = req.body;
@@ -234,5 +269,6 @@ module.exports = {
     loginUser,
     getUsers,
     verifyEmail,
-    resendOtp
+    resendOtp,
+    testEmailRoute
 };
