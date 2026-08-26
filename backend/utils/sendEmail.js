@@ -1,12 +1,65 @@
 const nodemailer = require("nodemailer");
 const dns = require("dns");
 
-// Force IPv4 first DNS resolution on Node 18+ to prevent ENETUNREACH IPv6 errors on cloud hosts like Render
 if (dns.setDefaultResultOrder) {
     dns.setDefaultResultOrder("ipv4first");
 }
 
 let transporter = null;
+
+const sendViaResend = async (to, subject, text, html) => {
+    const apiKey = process.env.RESEND_API_KEY.trim();
+    const fromEmail = process.env.EMAIL_USER ? process.env.EMAIL_USER.trim() : "onboarding@resend.dev";
+    
+    const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+            "Authorization": `Bearer ${apiKey}`,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            from: `NexusCart <${fromEmail.includes('@resend.dev') ? fromEmail : 'onboarding@resend.dev'}>`,
+            to: [(to || "").trim()],
+            subject: subject,
+            text: text,
+            html: html || `<p>${text}</p>`
+        })
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+        throw new Error(`Resend API Error: ${data.message || JSON.stringify(data)}`);
+    }
+    console.log(`Email sent via Resend API to ${to}. ID: ${data.id}`);
+    return data;
+};
+
+const sendViaBrevo = async (to, subject, text, html) => {
+    const apiKey = process.env.BREVO_API_KEY.trim();
+    const senderEmail = process.env.EMAIL_USER ? process.env.EMAIL_USER.trim() : "noreply@nexuscart.com";
+
+    const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: {
+            "api-key": apiKey,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            sender: { name: "NexusCart", email: senderEmail },
+            to: [{ email: (to || "").trim() }],
+            subject: subject,
+            textContent: text,
+            htmlContent: html || `<p>${text}</p>`
+        })
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+        throw new Error(`Brevo API Error: ${JSON.stringify(data)}`);
+    }
+    console.log(`Email sent via Brevo API to ${to}. MessageId: ${data.messageId}`);
+    return data;
+};
 
 const getTransporter = () => {
     const user = (process.env.EMAIL_USER || "").trim();
@@ -20,9 +73,9 @@ const getTransporter = () => {
         transporter = nodemailer.createTransport({
             host: "smtp.gmail.com",
             port: 587,
-            secure: false, // Use STARTTLS on port 587 (unblocked on cloud hosts)
+            secure: false,
             requireTLS: true,
-            family: 4, // Force IPv4 socket connection
+            family: 4,
             connectionTimeout: 10000,
             greetingTimeout: 5000,
             socketTimeout: 15000,
@@ -36,6 +89,25 @@ const getTransporter = () => {
 };
 
 const sendEmail = async (to, subject, text, html = null) => {
+    // 1. Try Resend HTTP API if key is set
+    if (process.env.RESEND_API_KEY && process.env.RESEND_API_KEY.trim()) {
+        try {
+            return await sendViaResend(to, subject, text, html);
+        } catch (resendErr) {
+            console.error("Resend API failed, falling back:", resendErr.message);
+        }
+    }
+
+    // 2. Try Brevo HTTP API if key is set
+    if (process.env.BREVO_API_KEY && process.env.BREVO_API_KEY.trim()) {
+        try {
+            return await sendViaBrevo(to, subject, text, html);
+        } catch (brevoErr) {
+            console.error("Brevo API failed, falling back:", brevoErr.message);
+        }
+    }
+
+    // 3. Fallback to Nodemailer SMTP
     try {
         const user = (process.env.EMAIL_USER || "").trim();
         if (!user) {
@@ -56,8 +128,8 @@ const sendEmail = async (to, subject, text, html = null) => {
         console.log(`Email sent successfully to ${to}. MessageId: ${info.messageId}`);
         return info;
     } catch (error) {
-        console.error("Error sending email:", error.message || error);
-        transporter = null; // Reset transporter on error to re-authenticate next attempt
+        console.error("Error sending email via SMTP:", error.message || error);
+        transporter = null;
         throw new Error(`Failed to send email: ${error.message}`);
     }
 };
