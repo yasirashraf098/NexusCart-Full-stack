@@ -58,6 +58,8 @@ const sendViaBrevo = async (to, subject, text, html, apiKey) => {
 };
 
 const getTransporter = () => {
+    const host = (process.env.EMAIL_HOST || process.env.SMTP_HOST || "smtp.gmail.com").trim();
+    const port = Number(process.env.EMAIL_PORT || process.env.SMTP_PORT || 587);
     const user = (process.env.EMAIL_USER || "").trim();
     const pass = (process.env.EMAIL_PASS || "").replace(/\s+/g, "");
 
@@ -67,10 +69,10 @@ const getTransporter = () => {
 
     if (!transporter) {
         transporter = nodemailer.createTransport({
-            host: "smtp.gmail.com",
-            port: 587,
-            secure: false,
-            requireTLS: true,
+            host: host,
+            port: port,
+            secure: port === 465,
+            requireTLS: port !== 465,
             family: 4,
             connectionTimeout: 10000,
             greetingTimeout: 5000,
@@ -85,17 +87,27 @@ const getTransporter = () => {
 };
 
 const sendEmail = async (to, subject, text, html = null) => {
+    // 1. Try Resend HTTP API if key is set
     const resendKey = (process.env.RESEND_API_KEY || process.env.RESEND_KEY || process.env.RESEND_APIKEY || process.env.resend_api_key || "").trim();
     if (resendKey) {
-        return await sendViaResend(to, subject, text, html, resendKey);
+        try {
+            return await sendViaResend(to, subject, text, html, resendKey);
+        } catch (resendErr) {
+            console.error("Resend API failed, trying fallback:", resendErr.message);
+        }
     }
 
+    // 2. Try Brevo HTTP API if key is set
     const brevoKey = (process.env.BREVO_API_KEY || process.env.BREVO_KEY || process.env.BREVO_APIKEY || process.env.brevo_api_key || "").trim();
     if (brevoKey) {
-        return await sendViaBrevo(to, subject, text, html, brevoKey);
+        try {
+            return await sendViaBrevo(to, subject, text, html, brevoKey);
+        } catch (brevoErr) {
+            console.error("Brevo API failed, trying fallback:", brevoErr.message);
+        }
     }
 
-    // Fallback to Nodemailer SMTP
+    // 3. Fallback to SMTP (Gmail or Brevo SMTP Relay)
     try {
         const user = (process.env.EMAIL_USER || "").trim();
         if (!user) {
