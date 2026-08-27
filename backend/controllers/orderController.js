@@ -40,14 +40,12 @@ NexusCart Team`;
 
         const htmlMessage = getOrderConfirmationTemplate(order, req.user);
 
-        // Instant non-blocking email dispatch via setImmediate
-        setImmediate(async () => {
-            try {
-                await sendEmail(req.user.email, `Order Confirmation #${order._id}`, textMessage, htmlMessage);
-            } catch (emailError) {
-                console.error("Order creation email notification error:", emailError.message);
-            }
-        });
+        // Reliable awaited email delivery
+        try {
+            await sendEmail(req.user.email, `Order Confirmation #${order._id}`, textMessage, htmlMessage);
+        } catch (emailError) {
+            console.error("Order creation email notification error:", emailError.message);
+        }
 
         res.status(201).json(order);
     } catch (error) {
