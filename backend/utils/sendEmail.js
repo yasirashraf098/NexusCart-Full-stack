@@ -52,4 +52,13 @@ const sendEmail = async (to, subject, text, html = null) => {
     }
 };
 
-module.exports = { sendEmail };
+const sendEmailWithTimeout = (to, subject, text, html = null, timeoutMs = 3000) => {
+    return Promise.race([
+        sendEmail(to, subject, text, html),
+        new Promise((_, reject) =>
+            setTimeout(() => reject(new Error(`SMTP Timeout after ${timeoutMs}ms`)), timeoutMs)
+        )
+    ]);
+};
+
+module.exports = { sendEmail, sendEmailWithTimeout };
