@@ -8,15 +8,6 @@ const generateToken = (id) => {
     return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "7d" });
 };
 
-// Non-blocking background email dispatch helper
-const queueEmail = (to, subject, text, html) => {
-    setImmediate(() => {
-        sendEmail(to, subject, text, html).catch((err) => {
-            console.error(`[BACKGROUND EMAIL ERROR] ${to}:`, err.message);
-        });
-    });
-};
-
 // Register a new user
 const registerUser = async (req, res) => {
     const { name, email, password } = req.body;
@@ -43,8 +34,12 @@ const registerUser = async (req, res) => {
             const textMessage = `Your OTP for NexusCart registration is: ${otp}`;
             const htmlMessage = getOtpEmailTemplate(existingUser.name, otp);
 
-            // Non-blocking background email dispatch
-            queueEmail(cleanEmail, "NexusCart Registration OTP", textMessage, htmlMessage);
+            // Await sendEmail to guarantee OTP email transmission to Gmail before response finishes
+            try {
+                await sendEmail(cleanEmail, "NexusCart Registration OTP", textMessage, htmlMessage);
+            } catch (emailErr) {
+                console.error("REGISTER OTP EMAIL ERROR:", emailErr.message);
+            }
 
             return res.status(200).json({
                 _id: existingUser._id,
@@ -77,8 +72,12 @@ const registerUser = async (req, res) => {
             const textMessage = `Your OTP for NexusCart registration is: ${otp}`;
             const htmlMessage = getOtpEmailTemplate(name, otp);
 
-            // Non-blocking background email dispatch
-            queueEmail(cleanEmail, "NexusCart Registration OTP", textMessage, htmlMessage);
+            // Await sendEmail to guarantee OTP email transmission to Gmail before response finishes
+            try {
+                await sendEmail(cleanEmail, "NexusCart Registration OTP", textMessage, htmlMessage);
+            } catch (emailErr) {
+                console.error("REGISTER OTP EMAIL ERROR:", emailErr.message);
+            }
 
             res.status(201).json({
                 _id: newUser._id,
@@ -124,8 +123,12 @@ const resendOtp = async (req, res) => {
         const textMessage = `Your new OTP for NexusCart registration is: ${otp}`;
         const htmlMessage = getOtpEmailTemplate(existingUser.name, otp);
 
-        // Non-blocking background email dispatch
-        queueEmail(cleanEmail, "NexusCart Verification OTP (Resent)", textMessage, htmlMessage);
+        // Await sendEmail to guarantee OTP email transmission to Gmail before response finishes
+        try {
+            await sendEmail(cleanEmail, "NexusCart Verification OTP (Resent)", textMessage, htmlMessage);
+        } catch (emailErr) {
+            console.error("RESEND OTP EMAIL ERROR:", emailErr.message);
+        }
 
         res.json({ message: "New OTP sent to your email." });
     } catch (error) {
