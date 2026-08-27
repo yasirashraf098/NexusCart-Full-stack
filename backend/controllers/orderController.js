@@ -2,6 +2,15 @@ const Order = require('../model/Order.js');
 const { sendEmail } = require('../utils/sendEmail.js');
 const { getOrderConfirmationTemplate } = require('../utils/emailTemplates.js');
 
+// Non-blocking background email dispatch helper
+const queueEmail = (to, subject, text, html) => {
+    setImmediate(() => {
+        sendEmail(to, subject, text, html).catch((err) => {
+            console.error(`[BACKGROUND EMAIL ERROR] ${to}:`, err.message);
+        });
+    });
+};
+
 // Create a new order
 const createOrder = async (req, res) => {
     try {
@@ -40,15 +49,12 @@ NexusCart Team`;
 
         const htmlMessage = getOrderConfirmationTemplate(order, req.user);
 
-        // Reliable awaited email delivery
-        try {
-            await sendEmail(req.user.email, `Order Confirmation #${order._id}`, textMessage, htmlMessage);
-        } catch (emailError) {
-            console.error("Order creation email notification error:", emailError.message);
-        }
+        // Non-blocking background email dispatch (instant HTTP response)
+        queueEmail(req.user.email, `Order Confirmation #${order._id}`, textMessage, htmlMessage);
 
         res.status(201).json(order);
     } catch (error) {
+        console.error("CREATE ORDER ERROR:", error);
         res.status(500).json({ message: error.message });
     }
 };
