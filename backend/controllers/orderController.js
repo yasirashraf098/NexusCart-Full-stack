@@ -2,15 +2,6 @@ const Order = require('../model/Order.js');
 const { sendEmail } = require('../utils/sendEmail.js');
 const { getOrderConfirmationTemplate } = require('../utils/emailTemplates.js');
 
-// Non-blocking background email dispatch helper
-const queueEmail = (to, subject, text, html) => {
-    setImmediate(() => {
-        sendEmail(to, subject, text, html).catch((err) => {
-            console.error(`[BACKGROUND EMAIL ERROR] ${to}:`, err.message);
-        });
-    });
-};
-
 // Create a new order
 const createOrder = async (req, res) => {
     try {
@@ -34,23 +25,28 @@ const createOrder = async (req, res) => {
 
         await order.save();
 
-        const textMessage = `Dear ${req.user.name},
+        const textMessage = `Dear ${req.user.name || 'Customer'},
 
 Thank you for your order! Your order has been successfully placed.
 
 Order Details:
 Order ID: ${order._id}
-Total Price: $${totalPrice}
+Total Price: ₹${totalPrice}
 
 We will notify you once your order is shipped.
 
 Best regards,
 NexusCart Team`;
 
-        const htmlMessage = getOrderConfirmationTemplate(order, req.user);
+        const htmlMessage = getOrderConfirmationTemplate(order, req.user || {});
 
-        // Non-blocking background email dispatch (instant HTTP response)
-        queueEmail(req.user.email, `Order Confirmation #${order._id}`, textMessage, htmlMessage);
+        // Await sendEmail to guarantee all HTML email packets complete transmission before response finishes
+        try {
+            await sendEmail(req.user.email, `Order Confirmation #${order._id}`, textMessage, htmlMessage);
+            console.log(`[ORDER EMAIL SENT] Successfully delivered order confirmation email for Order #${order._id} to ${req.user.email}`);
+        } catch (emailError) {
+            console.error("[ORDER EMAIL ERROR]:", emailError.message);
+        }
 
         res.status(201).json(order);
     } catch (error) {

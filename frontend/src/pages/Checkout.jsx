@@ -129,6 +129,7 @@ export const Checkout = () => {
     const orderPayload = {
       orderItems: cartItems.map((item) => ({
         product: item.product._id,
+        name: item.product.name,
         quantity: item.quantity,
         price: item.product.price,
       })),
