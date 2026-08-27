@@ -40,13 +40,12 @@ NexusCart Team`;
 
         const htmlMessage = getOrderConfirmationTemplate(order, req.user || {});
 
-        // Await sendEmail to guarantee all HTML email packets complete transmission before response finishes
-        try {
-            await sendEmail(req.user.email, `Order Confirmation #${order._id}`, textMessage, htmlMessage);
-            console.log(`[ORDER EMAIL SENT] Successfully delivered order confirmation email for Order #${order._id} to ${req.user.email}`);
-        } catch (emailError) {
-            console.error("[ORDER EMAIL ERROR]:", emailError.message);
-        }
+        // Instant non-blocking background email dispatch
+        setImmediate(() => {
+            sendEmail(req.user.email, `Order Confirmation #${order._id}`, textMessage, htmlMessage).catch((emailError) => {
+                console.error("[ORDER EMAIL ERROR]:", emailError.message);
+            });
+        });
 
         res.status(201).json(order);
     } catch (error) {
